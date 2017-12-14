@@ -81,7 +81,7 @@ UKF::~UKF() {}
  * @param {MeasurementPackage} meas_package The latest measurement data of
  * either radar or laser.
  */
-void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
+void UKF::ProcessMeasurement(MeasurementPackage& meas_package) {
   /**
   TODO:
 
@@ -216,7 +216,7 @@ void UKF::Prediction(double delta_t) {
   P_.fill(0.0);
   for (int i = 0; i < n_sig_; i++) {
     VectorXd xDiff = Xsig_pred_.col(i) - x_;
-    xDiff(3) = NormalizeAngle(xDiff(3));
+    NormalizeAngle(xDiff(3));
     P_ = P_ + weights_(i) * xDiff * xDiff.transpose();
   }
 }
@@ -225,7 +225,7 @@ void UKF::Prediction(double delta_t) {
  * Updates the state and the state covariance matrix using a laser measurement.
  * @param {MeasurementPackage} meas_package
  */
-void UKF::UpdateLidar(MeasurementPackage meas_package) {
+void UKF::UpdateLidar(MeasurementPackage& meas_package) {
   /**
   TODO:
 
@@ -245,7 +245,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * Updates the state and the state covariance matrix using a radar measurement.
  * @param {MeasurementPackage} meas_package
  */
-void UKF::UpdateRadar(MeasurementPackage meas_package) {
+void UKF::UpdateRadar(MeasurementPackage& meas_package) {
   /**
   TODO:
 
@@ -276,31 +276,28 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   UpdateUKF(meas_package, Zsig, n_z);
 }
 
-void UKF::UpdateUKF(MeasurementPackage meas_package, MatrixXd Zsig, int n_z) {
+void UKF::UpdateUKF(MeasurementPackage& meas_package, MatrixXd& Zsig, int n_z) {
   // z_pred, S, R
   VectorXd z_pred = VectorXd(n_z);
   MatrixXd S = MatrixXd(n_z, n_z);
-  MatrixXd *R;// = MatrixXd(n_z, n_z);
+  MatrixXd *R;
 
-  z_pred.fill(0.0);
-  for (int i = 0; i < n_sig_; i++) {
-    z_pred = z_pred + weights_(i) * Zsig.col(i);
-  }
+  //z_pred.fill(0.0);
+  //for (int i = 0; i < n_sig_; i++) {
+  //  z_pred = z_pred + weights_(i) * Zsig.col(i);
+  //}
+  z_pred = Zsig * weights_;
 
   S.fill(0.0);
   for (int i = 0; i < n_sig_; i++) {
     VectorXd zd = Zsig.col(i) - z_pred;
       if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-        zd(1) = NormalizeAngle(zd(1));
+        NormalizeAngle(zd(1));
       }
     S = S + weights_(i) * zd * zd.transpose();
   }
 
-  if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-    R = &R_laser_;
-  } else {
-    R = &R_radar_;
-  }
+  R = (meas_package.sensor_type_ == MeasurementPackage::LASER) ? &R_laser_ : &R_radar_;
 
   S = S + *R;
 
@@ -309,13 +306,11 @@ void UKF::UpdateUKF(MeasurementPackage meas_package, MatrixXd Zsig, int n_z) {
   for (int i = 0; i < n_sig_; i++) {
     
     VectorXd vX = Xsig_pred_.col(i) - x_;
-    //if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-      vX(3) = NormalizeAngle(vX(3));
-    //}
+    NormalizeAngle(vX(3));
 
     VectorXd vZ = Zsig.col(i) - z_pred;
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-      vZ(1) = NormalizeAngle(vZ(1));
+      NormalizeAngle(vZ(1));
     }
     Tc = Tc + weights_(i) * vX * vZ.transpose();
   }
@@ -324,17 +319,15 @@ void UKF::UpdateUKF(MeasurementPackage meas_package, MatrixXd Zsig, int n_z) {
   MatrixXd K = Tc * S.inverse();
   VectorXd z_diff = z - z_pred;
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-    z_diff(1) = NormalizeAngle(z_diff(1));
+    NormalizeAngle(z_diff(1));
   }
   x_ = x_ + K * z_diff;
   P_ = P_ - K * S * K.transpose();
   //cout << "Update UKF " << x_ << endl << P_ <<endl;
 }
 
-double UKF::NormalizeAngle(double theta) {
+void UKF::NormalizeAngle(double& theta) {
   if (theta < -M_PI || theta > M_PI) {
-    return atan2(sin(theta), cos(theta));
+    theta = atan2(sin(theta), cos(theta));
   }
-  return theta;
-  //return theta;
 }
