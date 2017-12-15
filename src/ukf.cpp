@@ -100,10 +100,10 @@ void UKF::ProcessMeasurement(MeasurementPackage& meas_package) {
       float rho_dot = meas_package.raw_measurements_[2];
       float px = rho * cos(theta);
       float py = rho * sin(theta);
-      float vx = rho_dot * cos(theta);
-      float vy = rho_dot * sin(theta);
-      float v  = sqrt(vx * vx + vy * vy);
-      x_ << px, py, v, 0, 0; //vx, vy;
+      //float vx = rho_dot * cos(theta);
+      //float vy = rho_dot * sin(theta);
+      //float v  = sqrt(vx * vx + vy * vy);
+      x_ << px, py, 0,0,0;//v, 0, 0; //vx, vy;
     }
     else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
       /**
@@ -112,7 +112,7 @@ void UKF::ProcessMeasurement(MeasurementPackage& meas_package) {
       x_ <<  meas_package.raw_measurements_[0],
                   meas_package.raw_measurements_[1],
                   0,0,0;
-      if (x_(0) < 0.001 && x_(1) < 0.001) {
+      if (fabs(x_(0)) < 0.001 && fabs(x_(1) < 0.001)) {
         x_(0) = x_(1) = 0.001;
       }
     }
@@ -174,13 +174,13 @@ void UKF::Prediction(double delta_t) {
   //cout << "Prediction 2" << endl;
 
   for (int i = 0; i < n_sig_; i++) {
-    double px = Xsig_aug(0, i);
-    double py = Xsig_aug(1, i);
-    double v = Xsig_aug(2, i);
-    double yaw = Xsig_aug(3, i);
-    double yawd = Xsig_aug(4, i);
-    double nu_a = Xsig_aug(5, i);
-    double nu_yawdd = Xsig_aug(6, i);
+    const double px = Xsig_aug(0, i);
+    const double py = Xsig_aug(1, i);
+    const double v = Xsig_aug(2, i);
+    const double yaw = Xsig_aug(3, i);
+    const double yawd = Xsig_aug(4, i);
+    const double nu_a = Xsig_aug(5, i);
+    const double nu_yawdd = Xsig_aug(6, i);
 
     double cy = cos(yaw);
     double sy = sin(yaw);
@@ -266,6 +266,10 @@ void UKF::UpdateRadar(MeasurementPackage& meas_package) {
     float yaw = Xsig_pred_(3, i);
     //float yawd = Xsig_pred_(4,i);
 
+    if (fabs(px) < 0.001 && fabs(py) < 0.001) {
+      px = 0.001;
+      py = 0.001;
+    }
     float phi = sqrt(px*px+py*py);
     float rho = atan2(py,px);
     float phid = (px * cos(yaw) * v + py * sin(yaw) * v) / phi;
